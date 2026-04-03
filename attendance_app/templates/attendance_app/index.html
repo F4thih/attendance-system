@@ -1,0 +1,91 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smart Attendance</title>
+  <link rel="icon" type="image/x-icon" href="{% static 'attendance_app/inst.ico' %}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: url("{% static 'attendance_app/bg.jpeg' %}") no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+    }
+
+    .card {
+      background: #ffffff;
+      padding: 35px 25px;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    img {
+      width: 180px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    h1 {
+      margin: 10px 0 5px;
+      font-size: 28px;
+      color: #2c3e50;
+    }
+
+    p {
+      color: #555;
+      font-size: 16px;
+      margin-bottom: 25px;
+    }
+
+    .btn {
+      display: block;
+      margin: 10px 0;
+      width: 100%;
+      padding: 15px;
+      font-size: 16px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      color: white;
+      text-decoration: none;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .btn.attendance { background: #007bff; }
+    .btn.attendance:hover { background: #0056b3; }
+    .btn.register { background: #28a745; }
+    .btn.register:hover { background: #1e7e34; }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 24px; }
+      p { font-size: 14px; }
+      .card { padding: 25px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="{% static 'attendance_app/inst_logo.jpg' %}" alt="Institution Logo">
+    <h1>College/School Name</h1>
+    <p>Attendance Management System</p>
+    <a href="{% url 'scan_page' %}" class="btn attendance"> Mark Attendance</a>
+    <a href="{% url 'attendance_status' %}" class="btn register">View Attendance Register</a>
+  </div>
+</body>
+</html>

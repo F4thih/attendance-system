@@ -1,0 +1,231 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Scan</title>
+  <link rel="icon" type="image/x-icon" href="{% static 'attendance_app/inst.ico' %}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: url("{% static 'attendance_app/bg.jpeg' %}") no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 15px;
+    }
+
+    h2 {
+      margin: 20px 0;
+      font-size: 24px;
+      text-align: center;
+    }
+
+    .camera-container {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+      background: #000;
+    }
+
+    video {
+      width: 100%;
+      display: block;
+      border-radius: 16px;
+    }
+
+    .guide {
+      position: absolute;
+      top: 20%;
+      left: 10%;
+      width: 80%;
+      height: 60%;
+      border: 3px dashed rgba(255,255,255,0.85);
+      border-radius: 12px;
+      pointer-events: none;
+      box-sizing: border-box;
+      transition: all 0.3s ease;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-size: 18px;
+      text-align: center;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+      min-height: 24px;
+    }
+
+    .home-btn {
+      margin-top: 20px;
+      padding: 12px 22px;
+      border: none;
+      border-radius: 10px;
+      background: #28a745;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .home-btn:hover {
+      background: #1e7e34;
+    }
+
+    @media (max-width: 480px) {
+      h2 { font-size: 20px; }
+      #status { font-size: 16px; }
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Scan Student ID</h2>
+
+<div class="camera-container">
+  <button id="torchBtn" class="home-btn" style="background:#ffc107;color:#000;">
+   Torch ON
+</button>
+  <video id="video" autoplay playsinline></video>
+  <div class="guide" id="guide"></div>
+</div>
+
+<canvas id="canvas" hidden></canvas>
+
+<div id="status">Align the ID card inside the box</div>
+
+<button class="home-btn" onclick="location.href='{% url 'index' %}'">
+  Return Home
+</button>
+
+<!-- Audio -->
+<audio id="successSound" src="{% static 'sound/success.mp3' %}"></audio>
+<audio id="errorSound" src="{% static 'sound/fail.mp3' %}"></audio>
+<audio id="infoSound" src="{% static 'sound/already.mp3' %}"></audio>
+
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const statusBox = document.getElementById("status");
+const guideBox = document.getElementById("guide");
+const torchBtn = document.getElementById("torchBtn");
+
+let scanning = true;
+let statusLocked = false;
+let streamTrack = null;
+let torchOn = false;
+
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: { exact: "environment" } }
+})
+.then(stream => {
+  video.srcObject = stream;
+  streamTrack = stream.getVideoTracks()[0];
+  scanLoop();
+
+  // Enable torch button only if supported
+  const capabilities = streamTrack.getCapabilities();
+  if (!capabilities.torch) {
+    torchBtn.disabled = true;
+    torchBtn.innerText = "Torch not supported";
+  }
+})
+.catch(() => {
+  statusBox.innerText = "Camera access failed";
+});
+
+// Torch toggle
+torchBtn.addEventListener("click", async () => {
+  if (!streamTrack) return;
+
+  torchOn = !torchOn;
+  await streamTrack.applyConstraints({
+    advanced: [{ torch: torchOn }]
+  });
+
+  torchBtn.innerText = torchOn ? "🔦 Torch OFF" : "🔦 Torch ON";
+});
+
+
+function flashGuide(color) {
+  guideBox.style.borderColor = color;
+  guideBox.style.backgroundColor =
+    color === "green" ? "rgba(0,255,0,0.2)" :
+    color === "red" ? "rgba(255,0,0,0.2)" :
+    color === "yellow" ? "rgba(255,255,0,0.2)" :
+    "transparent";
+
+  setTimeout(() => {
+    guideBox.style.borderColor = "rgba(255,255,255,0.85)";
+    guideBox.style.backgroundColor = "transparent";
+  }, 600);
+}
+
+function scanLoop() {
+  setInterval(async () => {
+    if (!scanning) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+
+    canvas.toBlob(async blob => {
+      const fd = new FormData();
+      fd.append("id_card", blob, "scan.jpg");
+
+      const res = await fetch("{% url 'live_scan' %}", {
+        method: "POST",
+        body: fd
+      });
+
+      const data = await res.json();
+
+      // SUCCESS
+      if (data.status === "success") {
+        scanning = false;
+        statusLocked = true;
+
+        statusBox.innerText = data.message;
+        flashGuide("green");
+        successSound.play();
+
+        setTimeout(() => {
+          window.location.href = "{% url 'attendance_status' %}";
+        }, 5000);
+      }
+
+      // ALREADY MARKED
+      else if (data.status === "already") {
+        if (!statusLocked) {
+          statusBox.innerText = data.message;
+          flashGuide("yellow");
+          infoSound.play();
+        }
+      }
+
+      //ERROR (only before success)
+      else {
+        if (!statusLocked) {
+          statusBox.innerText = data.message;
+          flashGuide("red");
+          errorSound.play();
+        }
+      }
+
+    }, "image/jpeg", 0.6);
+
+  }, 800);
+}
+</script>
+
+</body>
+</html>

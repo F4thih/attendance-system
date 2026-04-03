@@ -1,0 +1,225 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Attendance Status</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      min-height: 100vh;
+      background:
+        linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)),
+        url("{% static 'attendance_app/bg.jpeg' %}") no-repeat center center fixed;
+      background-size: cover;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 1100px;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 25px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    }
+
+    h1 {
+      text-align: center;
+      margin: 0 0 15px;
+      color: #203a43;
+    }
+
+    .summary {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .summary span {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 15px;
+    }
+
+    .present-count {
+      background: #e6f4ea;
+      color: #1e7e34;
+    }
+
+    .absent-count {
+      background: #fdecea;
+      color: #dc3545;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    thead {
+      background: #007bff;
+      color: #fff;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: center;
+      font-size: 15px;
+    }
+
+    tbody tr {
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    tbody tr:hover {
+      background: #f1f5f9;
+    }
+
+    .status-present {
+      color: #28a745;
+      font-weight: 600;
+    }
+
+    .status-absent {
+      color: #dc3545;
+      font-weight: 600;
+    }
+
+    .home-btn {
+      display: block;
+      margin: 25px auto 0;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      background: #28a745;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .home-btn:hover {
+      background: #1e7e34;
+    }
+
+    /* 📱 Mobile */
+    @media (max-width: 600px) {
+      .card {
+        padding: 18px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      th, td {
+        font-size: 13px;
+        padding: 8px;
+      }
+
+      .summary {
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h1>Today's Attendance</h1>
+
+  <div class="summary">
+    <span class="present-count">Present: {{ present_attendance|length }}</span>
+    <span class="absent-count">Absent: {{ absent_students|length }}</span>
+  </div>
+
+  <table id="attendanceTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Admission No</th>
+        <th>Status</th>
+        <th>Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for att in present_attendance %}
+      <tr onclick="location.href='{% url 'student_attendance' att.student.id %}'">
+        <td>{{ att.student.name }}</td>
+        <td>{{ att.student.admn_no }}</td>
+        <td class="status-present">Present</td>
+        <td>{{ att.time|default:"--:--"|date:"h:i A" }}</td>
+      </tr>
+      {% endfor %}
+
+      {% for student in absent_students %}
+      <tr onclick="location.href='{% url 'student_attendance' student.id %}'">
+        <td>{{ student.name }}</td>
+        <td>{{ student.admn_no }}</td>
+        <td class="status-absent">Absent</td>
+        <td>--:--</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <button class="home-btn" onclick="location.href='{% url 'index' %}'">
+    Return Home
+  </button>
+</div>
+
+<script>
+async function fetchAttendance() {
+  try {
+    const res = await fetch("{% url 'attendance_status_data' %}");
+    const data = await res.json();
+
+    const tbody = document.querySelector("#attendanceTable tbody");
+    tbody.innerHTML = "";
+
+    data.present.forEach(att => {
+      tbody.innerHTML += `
+        <tr onclick="location.href='/student/${att.id}/'">
+          <td>${att.name}</td>
+          <td>${att.admn_no}</td>
+          <td class="status-present">Present</td>
+          <td>${att.time}</td>
+        </tr>`;
+    });
+
+    data.absent.forEach(stu => {
+      tbody.innerHTML += `
+        <tr onclick="location.href='/student/${stu.id}/'">
+          <td>${stu.name}</td>
+          <td>${stu.admn_no}</td>
+          <td class="status-absent">Absent</td>
+          <td>--:--</td>
+        </tr>`;
+    });
+  } catch (err) {
+    console.error("Attendance fetch failed", err);
+  }
+}
+
+setInterval(fetchAttendance, 2000);
+</script>
+
+</body>
+</html>
